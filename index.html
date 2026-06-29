@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warung Nusantara</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+        body { background:#f4f6fb; }
+
+        .navbar { background:#ff6b35; }
+        .navbar-brand { font-weight:bold; font-size:28px; color:white !important; }
+        .nav-link { color:white !important; }
+
+        .hero {
+            background:linear-gradient(135deg,#ff6b35,#ff9800);
+            color:white; padding:70px 0;
+            border-radius:0 0 30px 30px; margin-bottom:40px;
+        }
+        .hero h1 { font-size:48px; font-weight:bold; }
+        .hero p { font-size:20px; }
+
+        .info-card { background:white; border-radius:20px; padding:20px; margin-bottom:25px; box-shadow:0 5px 15px rgba(0,0,0,.1); }
+        .search-box { margin-bottom:25px; }
+        .search-box input { border-radius:30px; padding:12px; }
+
+        .menu-card { border:none; border-radius:20px; overflow:hidden; transition:.3s; box-shadow:0 5px 15px rgba(0,0,0,.1); }
+        .menu-card:hover { transform:translateY(-8px); box-shadow:0 12px 25px rgba(0,0,0,.2); }
+        .menu-card img { height:200px; object-fit:cover; }
+        .price { color:#dc3545; font-weight:bold; font-size:20px; }
+
+        .cart { background:white; border-radius:20px; padding:20px; position:sticky; top:20px; box-shadow:0 5px 15px rgba(0,0,0,.1); }
+        .cart h3 { margin-bottom:20px; }
+        .total { font-size:24px; color:green; font-weight:bold; }
+
+        .footer { background:#343a40; color:white; padding:35px; margin-top:60px; text-align:center; }
+
+        .loading { position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(255,255,255,.8); display:none; justify-content:center; align-items:center; z-index:9999; }
+        .empty { text-align:center; color:gray; padding:30px; }
+
+        /* Demo mode banner */
+       .demo-banner {
+    display: none;
+}
+    </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading" id="loading">
+    <div class="spinner-border text-danger" style="width:70px;height:70px;"></div>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <a class="navbar-brand">🍽 Warung Nusantara</a>
+        <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="menu">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="#">Beranda</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Menu</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Pesanan</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container text-center">
+        <h1>Selamat Datang</h1>
+        <p>Nikmati Cita Rasa Masakan Nusantara</p>
+    </div>
+</section>
+
+<div class="container">
+
+    <!-- Demo Banner -->
+    <div class="demo-banner">
+        <i class="bi bi-info-circle-fill"></i>
+        <strong>Mode Demo (Tanpa Firebase)</strong> — Data berjalan di memori browser. 
+        Untuk menghubungkan Firebase, isi <code>firebaseConfig</code> di bagian script dan ganti <code>USE_MOCK = false</code>.
+    </div>
+
+    <div class="row">
+
+        <!-- LEFT -->
+        <div class="col-lg-8">
+            <div class="info-card">
+                <h4><i class="bi bi-shop"></i> Informasi Restoran</h4>
+                <p><b>Nama :</b> <span id="namaRestoran">Warung Nusantara</span></p>
+                <p><b>Alamat :</b> <span id="alamat">-</span></p>
+                <p><b>Jam Buka :</b> <span id="jamBuka">-</span></p>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="search" class="form-control" placeholder="Cari Menu...">
+            </div>
+
+            <div class="row" id="menuContainer"></div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="col-lg-4">
+            <div class="cart">
+                <h3>🛒 Keranjang</h3>
+                <div id="cartItems">
+                    <div class="empty">Belum ada pesanan</div>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label>Customer ID</label>
+                    <input type="text" id="customer" class="form-control" placeholder="customer001">
+                </div>
+                <div class="mb-3">
+                    <label>Nomor Meja</label>
+                    <input type="number" id="meja" class="form-control" placeholder="1">
+                </div>
+                <hr>
+                <div class="total">Rp <span id="totalHarga">0</span></div>
+                <button id="checkout" class="btn btn-success w-100 mt-3">Checkout Pesanan</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<footer class="footer">
+    <h5>Warung Nusantara</h5>
+    <p>Sistem Pemesanan Restoran Berbasis Firebase</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script type="module">
+
+/* ============================================================
+   KONFIGURASI — Ganti USE_MOCK = false jika pakai Firebase
+============================================================ */
+const USE_MOCK = true;
+
+/* ============================================================
+   KONFIGURASI FIREBASE (isi jika USE_MOCK = false)
+============================================================ */
+const firebaseConfig = {
+    apiKey:           "ISI_APIKEY",
+    authDomain:       "ISI_AUTHDOMAIN",
+    projectId:        "warung-nusantara",
+    storageBucket:    "",
+    messagingSenderId:"",
+    appId:            ""
+};
+
+/* ============================================================
+   MOCK DATA — Digunakan saat USE_MOCK = true
+============================================================ */
+const MOCK_RESTORAN = {
+    name:      "Warung Nusantara",
+    address:   "Jl. Raya Darmo No. 88, Surabaya",
+    openHours: "08.00 – 22.00 WIB"
+};
+
+const MOCK_MENU = [
+    { id:"m1", name:"Nasi Goreng Spesial",  category:"Nasi",    price:25000, description:"Nasi goreng dengan telur, ayam, dan bumbu rahasia.", image:"https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=500&h=300&fit=crop" },
+    { id:"m2", name:"Soto Ayam Lamongan",   category:"Soto",    price:22000, description:"Soto bening kunyit khas Lamongan dengan lontong.",   image:"https://images.unsplash.com/photo-1555126634-323283e090fa?w=500&h=300&fit=crop" },
+    { id:"m3", name:"Rendang Sapi",          category:"Lauk",    price:35000, description:"Rendang daging sapi empuk dengan santan kental.",    image:"https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&h=300&fit=crop" },
+    { id:"m4", name:"Gado-Gado",             category:"Sayur",   price:18000, description:"Sayuran segar dengan bumbu kacang gurih.",           image:"https://images.unsplash.com/photo-1567631813900-4002d6c53e83?w=500&h=300&fit=crop" },
+    { id:"m5", name:"Es Teh Manis",          category:"Minuman", price:5000,  description:"Teh manis segar dengan es batu.",                   image:"https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&h=300&fit=crop" },
+    { id:"m6", name:"Mie Goreng Jawa",       category:"Mie",     price:20000, description:"Mie goreng bumbu Jawa dengan sayuran dan telur.",   image:"https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=500&h=300&fit=crop" },
+];
+
+/* Penyimpanan pesanan mock (dalam memori) */
+let mockOrders = [];
+
+/* ============================================================
+   ELEMEN HTML
+============================================================ */
+const loading       = document.getElementById("loading");
+const menuContainer = document.getElementById("menuContainer");
+const namaRestoran  = document.getElementById("namaRestoran");
+const alamat        = document.getElementById("alamat");
+const jamBuka       = document.getElementById("jamBuka");
+const search        = document.getElementById("search");
+const cartItems     = document.getElementById("cartItems");
+const totalHarga    = document.getElementById("totalHarga");
+const customer      = document.getElementById("customer");
+const meja          = document.getElementById("meja");
+const checkout      = document.getElementById("checkout");
+
+/* ============================================================
+   STATE
+============================================================ */
+let semuaMenu = [];
+let keranjang = [];
+
+/* ============================================================
+   LOADING
+============================================================ */
+function showLoading() { loading.style.display = "flex"; }
+function hideLoading() { loading.style.display = "none"; }
+
+/* ============================================================
+   INIT FIREBASE (hanya jika USE_MOCK = false)
+============================================================ */
+let db = null;
+
+async function initFirebase() {
+    const { initializeApp }                            = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getFirestore, doc, getDoc, collection, getDocs, addDoc, Timestamp }
+                                                       = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    return { doc, getDoc, collection, getDocs, addDoc, Timestamp };
+}
+
+/* ============================================================
+   AMBIL DATA RESTORAN
+============================================================ */
+async function tampilRestoran() {
+    showLoading();
+    try {
+        if (USE_MOCK) {
+            namaRestoran.innerHTML = MOCK_RESTORAN.name;
+            alamat.innerHTML       = MOCK_RESTORAN.address;
+            jamBuka.innerHTML      = MOCK_RESTORAN.openHours;
+        } else {
+            const { doc, getDoc } = await initFirebase();
+            const snap = await getDoc(doc(db, "restaurants", "restoran001"));
+            if (snap.exists()) {
+                const d = snap.data();
+                namaRestoran.innerHTML = d.name;
+                alamat.innerHTML       = d.address;
+                jamBuka.innerHTML      = d.openHours;
+            }
+        }
+    } catch(err) { console.error(err); }
+    hideLoading();
+}
+
+/* ============================================================
+   AMBIL MENU
+============================================================ */
+async function tampilMenu() {
+    showLoading();
+    menuContainer.innerHTML = "";
+    semuaMenu = [];
+    try {
+        if (USE_MOCK) {
+            semuaMenu = MOCK_MENU;
+        } else {
+            const { collection, getDocs } = await initFirebase();
+            const snapshot = await getDocs(collection(db, "restaurants", "restoran001", "menus"));
+            snapshot.forEach(d => semuaMenu.push({ id: d.id, ...d.data() }));
+        }
+        renderMenu(semuaMenu);
+    } catch(err) { console.error(err); }
+    hideLoading();
+}
+
+/* ============================================================
+   SEARCH
+============================================================ */
+search.addEventListener("keyup", () => {
+    const keyword = search.value.toLowerCase();
+    renderMenu(semuaMenu.filter(m => m.name.toLowerCase().includes(keyword)));
+});
+
+/* ============================================================
+   RENDER MENU
+============================================================ */
+function renderMenu(dataMenu) {
+    menuContainer.innerHTML = "";
+    if (dataMenu.length === 0) {
+        menuContainer.innerHTML = `<div class="col-12"><div class="alert alert-warning text-center">Menu tidak ditemukan.</div></div>`;
+        return;
+    }
+    dataMenu.forEach(menu => {
+        const col = document.createElement("div");
+        col.className = "col-md-6 col-xl-4 mb-4";
+        col.innerHTML = `
+        <div class="card menu-card h-100">
+            <img src="${menu.image || 'https://picsum.photos/500/300'}" class="card-img-top" alt="${menu.name}">
+            <div class="card-body d-flex flex-column">
+                <span class="badge bg-warning text-dark mb-2">${menu.category || "Menu"}</span>
+                <h5 class="card-title">${menu.name}</h5>
+                <p class="text-muted small flex-grow-1">${menu.description || "Masakan khas Warung Nusantara."}</p>
+                <div class="price mb-3">Rp ${Number(menu.price).toLocaleString("id-ID")}</div>
+                <button class="btn btn-primary tambahBtn">
+                    <i class="bi bi-cart-plus"></i> Tambah
+                </button>
+            </div>
+        </div>`;
+        col.querySelector(".tambahBtn").addEventListener("click", () => tambahKeranjang(menu));
+        menuContainer.appendChild(col);
+    });
+}
+
+/* ============================================================
+   KERANJANG
+============================================================ */
+function tambahKeranjang(menu) {
+    const cari = keranjang.find(i => i.id === menu.id);
+    if (cari) { cari.qty++; }
+    else { keranjang.push({ id:menu.id, name:menu.name, price:Number(menu.price), qty:1 }); }
+    renderCart();
+    showToast("Ditambahkan", `${menu.name} masuk keranjang 🛒`, "success");
+}
+
+function renderCart() {
+    if (keranjang.length === 0) {
+        cartItems.innerHTML = `<div class="empty"><i class="bi bi-cart-x fs-1"></i><br><br>Keranjang masih kosong</div>`;
+        totalHarga.innerHTML = "0";
+        return;
+    }
+    let total = 0;
+    cartItems.innerHTML = "";
+    keranjang.forEach((item, index) => {
+        const subtotal = item.price * item.qty;
+        total += subtotal;
+        const div = document.createElement("div");
+        div.className = "card mb-3 shadow-sm";
+        div.innerHTML = `
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <h6 class="mb-0">${item.name}</h6>
+                <button class="btn btn-sm btn-danger hapus"><i class="bi bi-trash"></i></button>
+            </div>
+            <small class="text-muted">Rp ${item.price.toLocaleString("id-ID")}</small>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    <button class="btn btn-outline-secondary btn-sm kurang">-</button>
+                    <span class="mx-3">${item.qty}</span>
+                    <button class="btn btn-outline-success btn-sm tambah">+</button>
+                </div>
+                <strong>Rp ${subtotal.toLocaleString("id-ID")}</strong>
+            </div>
+        </div>`;
+        div.querySelector(".tambah").addEventListener("click", () => { keranjang[index].qty++; renderCart(); });
+        div.querySelector(".kurang").addEventListener("click", () => { keranjang[index].qty--; if(keranjang[index].qty<=0) keranjang.splice(index,1); renderCart(); });
+        div.querySelector(".hapus").addEventListener("click",  () => { keranjang.splice(index,1); renderCart(); });
+        cartItems.appendChild(div);
+    });
+    totalHarga.innerHTML = total.toLocaleString("id-ID");
+}
+
+/* ============================================================
+   CHECKOUT
+============================================================ */
+checkout.addEventListener("click", async () => {
+    if (!customer.value.trim()) { showToast("Perhatian","Masukkan Customer ID!","warning"); customer.focus(); return; }
+    if (!meja.value)            { showToast("Perhatian","Masukkan Nomor Meja!","warning"); meja.focus(); return; }
+    if (keranjang.length === 0) { showToast("Perhatian","Keranjang masih kosong!","warning"); return; }
+
+    showLoading();
+
+    try {
+        let total = keranjang.reduce((sum, i) => sum + i.price * i.qty, 0);
+
+        if (USE_MOCK) {
+            /* Simpan ke array memori */
+            const orderId = "order_" + Date.now();
+            mockOrders.push({
+                id: orderId,
+                customerId:   customer.value,
+                restaurantId: "restoran001",
+                tableNumber:  Number(meja.value),
+                status:       "pending",
+                totalPrice:   total,
+                createdAt:    new Date().toISOString(),
+                items:        keranjang.map(i => ({
+                    menuId:   i.id,
+                    menuName: i.name,
+                    quantity: i.qty,
+                    price:    i.price,
+                    subtotal: i.price * i.qty
+                }))
+            });
+            console.log("📦 Mock Orders:", mockOrders);
+        } else {
+            const { collection, addDoc, Timestamp } = await initFirebase();
+            const orderRef = await addDoc(collection(db, "orders"), {
+                customerId:   customer.value,
+                restaurantId: "restoran001",
+                tableNumber:  Number(meja.value),
+                status:       "pending",
+                totalPrice:   total,
+                createdAt:    Timestamp.now()
+            });
+            for (const item of keranjang) {
+                await addDoc(collection(db, "orders", orderRef.id, "orderItems"), {
+                    menuId:   item.id,
+                    menuName: item.name,
+                    quantity: item.qty,
+                    price:    item.price,
+                    subtotal: item.price * item.qty
+                });
+            }
+        }
+
+        hideLoading();
+        showToast("Berhasil!", `Pesanan untuk Meja ${meja.value} telah disimpan ✅`, "success");
+        keranjang = [];
+        renderCart();
+        customer.value = "";
+        meja.value = "";
+
+    } catch(error) {
+        hideLoading();
+        console.error(error);
+        showToast("Error", "Terjadi kesalahan saat menyimpan data.", "danger");
+    }
+});
+
+/* ============================================================
+   TOAST NOTIFICATION
+============================================================ */
+function showToast(title, message, type = "success") {
+    const toast = document.createElement("div");
+    toast.className = `toast align-items-center text-bg-${type} border-0 position-fixed bottom-0 end-0 m-4 show`;
+    toast.style.zIndex = "99999";
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body"><strong>${title}</strong><br>${message}</div>
+            <button class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button>
+        </div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+/* ============================================================
+   LOAD AWAL
+============================================================ */
+window.addEventListener("DOMContentLoaded", () => {
+    tampilRestoran();
+    tampilMenu();
+    renderCart();
+});
+
+</script>
+</body>
+</html>
